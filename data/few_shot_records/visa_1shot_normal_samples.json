@@ -1,0 +1,38 @@
+{
+    "candle": [
+        "./data/VisA/candle/Data/Images/Normal/0281.JPG"
+    ],
+    "capsules": [
+        "./data/VisA/capsules/Data/Images/Normal/470.JPG"
+    ],
+    "cashew": [
+        "./data/VisA/cashew/Data/Images/Normal/222.JPG"
+    ],
+    "chewinggum": [
+        "./data/VisA/chewinggum/Data/Images/Normal/454.JPG"
+    ],
+    "fryum": [
+        "./data/VisA/fryum/Data/Images/Normal/381.JPG"
+    ],
+    "macaroni1": [
+        "./data/VisA/macaroni1/Data/Images/Normal/0670.JPG"
+    ],
+    "macaroni2": [
+        "./data/VisA/macaroni2/Data/Images/Normal/0712.JPG"
+    ],
+    "pcb1": [
+        "./data/VisA/pcb1/Data/Images/Normal/0243.JPG"
+    ],
+    "pcb2": [
+        "./data/VisA/pcb2/Data/Images/Normal/0061.JPG"
+    ],
+    "pcb3": [
+        "./data/VisA/pcb3/Data/Images/Normal/0850.JPG"
+    ],
+    "pcb4": [
+        "./data/VisA/pcb4/Data/Images/Normal/0704.JPG"
+    ],
+    "pipe_fryum": [
+        "./data/VisA/pipe_fryum/Data/Images/Normal/066.JPG"
+    ]
+}

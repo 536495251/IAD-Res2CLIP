@@ -1,0 +1,11 @@
+{
+    "01": [
+        "./data/BTech_Dataset_transformed/01/train/ok/0341.bmp"
+    ],
+    "02": [
+        "./data/BTech_Dataset_transformed/02/train/ok/0154.png"
+    ],
+    "03": [
+        "./data/BTech_Dataset_transformed/03/train/ok/0708.bmp"
+    ]
+}

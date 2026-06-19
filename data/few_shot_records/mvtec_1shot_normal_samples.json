@@ -1,0 +1,47 @@
+{
+    "carpet": [
+        "./data/MVTec/carpet/train/good/148.png"
+    ],
+    "bottle": [
+        "./data/MVTec/bottle/train/good/093.png"
+    ],
+    "hazelnut": [
+        "./data/MVTec/hazelnut/train/good/056.png"
+    ],
+    "leather": [
+        "./data/MVTec/leather/train/good/148.png"
+    ],
+    "cable": [
+        "./data/MVTec/cable/train/good/009.png"
+    ],
+    "capsule": [
+        "./data/MVTec/capsule/train/good/063.png"
+    ],
+    "grid": [
+        "./data/MVTec/grid/train/good/190.png"
+    ],
+    "pill": [
+        "./data/MVTec/pill/train/good/184.png"
+    ],
+    "transistor": [
+        "./data/MVTec/transistor/train/good/078.png"
+    ],
+    "metal_nut": [
+        "./data/MVTec/metal_nut/train/good/104.png"
+    ],
+    "screw": [
+        "./data/MVTec/screw/train/good/093.png"
+    ],
+    "toothbrush": [
+        "./data/MVTec/toothbrush/train/good/051.png"
+    ],
+    "zipper": [
+        "./data/MVTec/zipper/train/good/189.png"
+    ],
+    "tile": [
+        "./data/MVTec/tile/train/good/066.png"
+    ],
+    "wood": [
+        "./data/MVTec/wood/train/good/014.png"
+    ]
+}
