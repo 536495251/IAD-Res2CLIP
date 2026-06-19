@@ -93,25 +93,38 @@ S = 100 × (0.3 × S_cls + 0.5 × S_seg + 0.2 × S_zs)
 
 ```
 dataset/
-├── Train/
+├── Train/                              ← 50 类 × 20 正常样本
 │   ├── 3_adapter/
 │   │   ├── S0001/          ← 1 个样本
-│   │   │   ├── 0.png       ← 5 个视角
-│   │   │   ├── 1.png
-│   │   │   ├── 2.png
-│   │   │   ├── 3.png
-│   │   │   └── 4.png
+│   │   │   ├── 0.png       ← 5 个视角 (3585×3585)
+│   │   │   ├── 1.png       ← (2250×2250)
+│   │   │   ├── 2.png       ← (2592×2592)
+│   │   │   ├── 3.png       ← (2336×2336)
+│   │   │   └── 4.png       ← (2654×2654)
 │   │   ├── S0002/
-│   │   └── ...
-│   ├── DVD_switch/
-│   ├── ...
-│   └── wireless_receiver_module/    ← 共 50 类
-│       └── S0001...S0020
-├── TestA/                            ← (比赛时提供，目前没有)
-│   └── ...
-└── TestB/                            ← (比赛时提供，目前没有)
+│   │   └── ... S0020
+│   ├── battery/
+│   └── ... (50 categories total)
+│
+├── Test_A/                             ← 50 类 × 15 样本 (正常+异常)
+│   ├── 3_adapter/                      ← 与 Train 相同类别
+│   │   ├── S0001/
+│   │   │   ├── 0.png ~ 4.png
+│   │   ├── S0002/
+│   │   └── ... S0015
+│   ├── battery/
+│   └── ... (50 categories total, 750 samples)
+│
+└── Test_B/                            ← (比赛时提供)
     └── ...
 ```
+
+**Test_A 已知信息**：
+- 50 个类别（与 Train 相同）
+- 每类 15 个样本 = 750 个样本总计
+- 每个样本 5 个视角 (0.png ~ 4.png)
+- 图像尺寸与 Train 一致（视口 0 约 3500×3500，其余约 1000-2600px）
+- **不包含 mask / 标签文件**（评价在服务端进行）
 
 ### 3.2 步骤 1.1: 生成数据集元数据
 
@@ -136,22 +149,27 @@ dataset/
 - 记录每个类别的**所有正常样本路径**（group_folder 级别）
 - 统计每个类别的图像尺寸分布（用于后续决定 resize 策略）
 
-### 3.3 步骤 1.2: 本地验证集分割（重要！）
+### 3.3 步骤 1.2: 本地验证策略（更新）
 
-由于 Test A/B 未发布，需要从 50 个已见类别中**留出部分做本地验证**。
+**现状**：Test_A 已获取但**不含标签**，无法本地计算指标。
+Test_B 尚未发布。
 
-策略：
+**本地验证的可行方案**：
 
-```
-50 个类别
-├── 35 类 → Training (用于微调)
-├── 5 类  → Seen-Val (模拟 Test A: 已见类别测试)
-└── 10 类 → Unseen-Val (模拟 Test B: 未见类别测试)
-```
+| 方式 | 数据源 | 可评估指标 | 说明 |
+|------|--------|-----------|------|
+| **MVTec AD** | 下载 MVTec AD 完整数据 | I-AUROC, P-AUROC, AUPRO | 有完整 GT mask，可验证分割 |
+| **VisA** | 下载 VisA 数据 | I-AUROC, P-AUROC, AUPRO | 同上，另一个工业检测基准 |
+| **Real-IAD 留出验证** | 从 Train 50 类中选 5 类做 Unseen | 仅分类（无 mask GT）| 只能验证 S_cls |
+| **伪标签自验证** | 对 Test_A 推理后用统计分布观察 | 定性分析 | 检查正常/异常样本的 score 分布是否可分 |
 
-> **注意**：本地验证只能模拟**分类**指标，无法模拟**分割**指标，
-> 因为训练集没有异常样本和 mask。
-> 需要准备一个额外的异常检测数据集（如 MVTec/VisA）来验证分割性能。
+**推荐**：下载 **MVTec AD** 作为主要的本地验证集，因为它：
+- 有完整的 pixel-level GT mask → 可验证分割精度
+- 原论文即使用 MVTec/VisA → 指标可直接对比
+- 同样为工业检测场景 → 泛化能力有参考价值
+
+> 注意：MVTec 是单视角数据集，只能验证**单视角**算法能力。
+> 多视角融合策略的效果需在最终提交时才能验证。
 
 ### 3.4 步骤 1.3: 建立类别名 -> ID 映射表
 
@@ -635,17 +653,23 @@ for each batch:
 ### 7.5 微调流程决策树
 
 ```
-有 GPU (>=24GB)?
-├── 是: 可以微调
+GPU: NVIDIA RTX 4060 Laptop, 8GB VRAM
+├── 可以微调，但 batch_size 受限
+│   ├── 预测显存占用:
+│   │   ├── 单图推理: ~2-3 GB
+│   │   ├── 5 视角 batch: ~10-12 GB (8GB 不够!)
+│   │   └── 推荐: 逐视角推理或 batch_size=2~3
+│   │
 │   ├── 有 MVTec/VisA 数据?
 │   │   ├── 是: 先在 MVTec 上预训练适配器
 │   │   │   → 再在 Real-IAD 上用合成异常微调
 │   │   └── 否: 直接在 Real-IAD 上用合成异常训练
-│   └── 观察验证集指标
+│   │
+│   └── 观察 MVTec 验证集指标
 │       ├── 提升 > 2%: 保留微调
 │       └── 提升 < 2%: 退回 training-free
 │
-└── 否: 放弃微调，专注 training-free + 后处理优化
+└── 如果显存不足: 放弃微调，专注 training-free + 后处理优化
 ```
 
 ---
@@ -786,17 +810,24 @@ def validate_submission(zip_path):
 
 ### 9.1 验证策略
 
-由于比赛 Test A/B 未发布，我们需要：
+**当前状态**（Test_A 已获取但无标签，Test_B 未发布）：
 
-| 验证方式 | 数据源 | 评估指标 | 备注 |
+| 验证方式 | 数据源 | 可评估指标 | 状态 |
 |---------|--------|---------|------|
-| **Real-IAD 模拟** | 从 50 类中留出 5 类 | I-AUROC | 只能评分类（无 GT mask） |
-| **MVTec AD** | 下载 MVTec AD 完整数据 | I-AUROC, P-AUROC, AUPRO | 可评分割，跨域验证泛化 |
-| **VisA** | 下载 VisA 数据 | I-AUROC, P-AUROC, AUPRO | 同上 |
-| **BTAD** | 下载 BTAD 数据 | I-AUROC, P-AUROC, AUPRO | 同上 |
+| **Real-IAD Test_A 自查** | Test_A 推理结果 | 无标签，定性分析 score 分布 | 🟢 可跑，无法定量 |
+| **MVTec AD** | 下载 MVTec AD 完整数据 | I-AUROC, P-AUROC, AUPRO | 🟡 需下载 |
+| **VisA** | 下载 VisA 数据 | I-AUROC, P-AUROC, AUPRO | 🟡 需下载 |
+| **Real-IAD 留出验证** | 从 Train 50 类留出类别 | 仅分类（无 mask） | 🟢 可用 |
 
-**推荐**：下载 **MVTec AD** (无需额外注册) 来做完整的分割能力评估。
-原论文也使用 MVTec+VisA，指标可以直接对比论文结果。
+**最小可行验证方案**（不下载外部数据）：
+1. 用 Train 中 50 类做 Memory Bank
+2. 对 Test_A 的 750 个样本推理
+3. 观察预测 anomaly_score 的分布直方图——正常和异常样本应有双峰
+4. 随机抽样检查：score 高的看图像是否有真缺陷
+
+**完整验证方案**（推荐）：
+1. 下载 MVTec AD → 完整评估 I/P-AUROC、AUPRO
+2. 对比原论文指标（MVTec 上 Res2CLIP* 的 I-AUROC 约 93%, P-AUROC 约 97%）
 
 ### 9.2 调优参数清单
 
@@ -896,29 +927,41 @@ data/dataset.py      → 增加 Real-IAD 数据集注册
 
 ## 11. 时间规划
 
-假设全职投入，按优先级排序：
+> **更新于 2026/06/19**：Test_A 已到位。从"等待数据"切换到"动手实现模式"。
+
+按优先级排序：
 
 ```
-Week 1: 基础设施
-  Day 1-2:  Phase 1 数据准备 + DataLoader
-  Day 3-4:  Phase 2 单视角 Baseline 跑通
-  Day 5-7:  Phase 3 多视角推理初版
+=== 本周冲刺: 跑通全流程，提交第一版 ===
 
-Week 2: 核心功能
-  Day 1-2:  Phase 4 Mask 上采样 (S1 baseline)
-  Day 3-4:  Phase 6 提交文件生成 + 格式验证
-  Day 5-7:  Phase 7 在 MVTec/VisA 上调优
+Day 1:  装依赖 + 下载 CLIP 权重 + Real-IAD DataLoader
+Day 2:  单视角推理验证 + 多视角推理引擎
+Day 3:  Mask 上采样 (37→448) + 提交文件生成
+Day 4:  全量推理 Test_A (750 样本) + 第一次提交
+Day 5:  参数调优 + 消融实验
 
-Week 3: 进阶优化
-  Day 1-3:  Phase 5 合成异常 + 微调 (可选)
-  Day 4-5:  Phase 4 轻量 Decoder (S4)
-  Day 6-7:  消融实验 + 参数搜索
+=== 下周: 进阶优化 ===
 
-Week 4: 冲刺
-  Day 1-3:  最终调优 + 交叉验证
-  Day 4-5:  生成 Test A/B 提交文件
-  Day 6-7:  文档 + 最后一次复核
+Week 2: 下载 MVTec AD → 完整评估
+        合成异常 + 微调适配器
+        多视角 fusion 策略优化
+
+=== 待 Test_B 发布 ===
+
+调整未见类别策略、最终提交
 ```
+
+### 当前实际进度
+
+| Phase | 状态 | 预计完成 |
+|-------|------|---------|
+| Phase 1 数据准备 | ✅ Test_A 已到位，需写 DataLoader | 今天 |
+| Phase 2 单视角 Baseline | ⏳ 未开始 | Day 1-2 |
+| Phase 3 多视角推理 | ⏳ 未开始 | Day 2-3 |
+| Phase 4 Mask 上采样 | ⏳ 未开始 | Day 3 |
+| Phase 6 提交流程 | ⏳ 未开始 | Day 3-4 |
+| Phase 5 微调 | 🔲 待 baseline 跑通后 | Week 2 |
+| Phase 7 调优 | 🔲 待有验证结果后 | Week 2 |
 
 ---
 
@@ -933,16 +976,28 @@ pyyaml>=6.0               # 配置管理
 matplotlib>=3.7.0         # 可视化调试
 ```
 
-### B. 注意事项
+### B. 环境信息（实测）
 
-1. **GPU 显存**：ViT-L/14@336px 每张图约 3-4GB 显存 (batch=1)。5 个视角同时推理
-   建议 batch_size=5 → 约 12-16GB 显存。如果显存不足，逐视角推理也可以。
+| 项目 | 数值 |
+|------|------|
+| GPU | NVIDIA GeForce RTX 4060 Laptop |
+| 显存 | 8.0 GB（可使用约 6.9 GB） |
+| CUDA | 12.1 / cuDNN 9.0 |
+| PyTorch | 2.5.1+cu121 |
+| 磁盘剩余 | C 盘约 20 GB |
+| Python | 3.11.5 |
+
+### C. 注意事项
+
+1. **GPU 显存**：ViT-L/14@336px 单图推理约 2-3GB（batch=1）。
+   5 图同时推理约 10-12GB → **8GB 不够全 batch**。
+   **推荐**：逐视角推理或 batch_size=2~3。
 
 2. **CLIP 权重**：首次运行会从 OpenAI 下载 ViT-L/14@336px.pt (~1.6GB)，
    保存在 `./clip_model/`。确保网络畅通。
 
-3. **比赛数据存储**：7.17 GB 训练数据 + 待发布的 Test A/B。
-   确保有足够磁盘空间。
+3. **比赛数据存储**：Train 7.17 GB + Test_A（待实测）+ 待发布的 Test_B。
+   目前 C 盘仅剩 20G，注意留足空间。
 
 4. **提交前检查**：
    - [ ] submission.csv 列名和格式正确
