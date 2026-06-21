@@ -361,9 +361,9 @@ if __name__ == '__main__':
     # Synthetic anomaly
     parser.add_argument('--anomaly_ratio', type=float, default=0.5,
                         help='Fraction of each batch to apply synthetic anomaly (0-1)')
-    parser.add_argument('--synth_method', type=str, default='cut_paste_jitter',
-                        choices=['cut_paste', 'cut_paste_jitter'],
-                        help='Synthetic anomaly method')
+    parser.add_argument('--synth_method', type=str, default='mixed',
+                        choices=['cut_paste', 'cut_paste_jitter', 'mixed'],
+                        help='Synthetic anomaly method (mixed = random per image)')
 
     # Matching
     parser.add_argument('--match_strategy',  type=str, default='sparse_radial_knn')
