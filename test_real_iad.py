@@ -219,7 +219,7 @@ def infer_one_view(model, text_bank, image, cls_name, memory_bank,
 
             # KNN match → visual residual
             ref_feat = ref_patch_features[i]
-            # Memory bank has 2 samples × 5 views per class
+            # Memory bank has 2 samples × 5 views = 10 refs per class
             mem_k_shot = args.k_shot * 5 * 2
             _, matched_ref = get_visual_match(
                 feat=feat, ref_feat=ref_feat,
@@ -263,13 +263,11 @@ def infer_one_view(model, text_bank, image, cls_name, memory_bank,
         M_vis  = avg_upsample(maps_vis)
         M_res  = avg_upsample(maps_res)
 
-        # Pixel-level fusion
+        # Pixel-level fusion (maps already upsampled + blurred in avg_upsample)
         if adapters is not None:
             M = M_text * 0.1 + M_vis + M_res * 0.1
         else:
             M = M_text * 0.1 + M_vis + M_res
-        M = F.interpolate(M, size=(img_size, img_size), mode='bilinear')
-        M = gaussian_kernel(M)
 
         # Image-level score
         def top1pct(m):
